@@ -66,6 +66,7 @@ class NodeListWalker(object):
 		self.parent = ["ROOT_UUID"]
 		self.uuid = "ROOT_UUID"
 		self.frameByUUID = {}
+		self.nodeByUUID = {}
 		
 	def reset(self):
 		self._level = -1
@@ -98,20 +99,21 @@ class NodeListWalker(object):
 				else:
 					nodeName = "BASE"
 					self.uuid = 'ROOT_UUID'
-				nodes = node['nodes']
-
+				nodes = node['nodes'] # need to have these point to UUID-based dictionary
+				nodeList = [x['attributes']['uuid'] for x in nodes]
 				thisParent = self.parent[-1] if len(self.parent) else "ROOT_UUID"
 				self.frameByUUID[self.uuid] = (frame,thisParent)
 				self.nodes.append({'level':self._level,
 				                   'attributes': attributes,
 				                   'frame':frame,
-				                   'nodes':nodes,
+				                   'nodes':nodeList,
 				                   'class':classType,
 				                   'parent':thisParent,
 				                   'uuid':self.uuid,
 				                   'name':nodeName,
 				                   })
 				self.parent.append(self.uuid)
+				self.nodeByUUID[self.uuid] = self.nodes[-1]
 				self.traverseNodeList(nodes)
 		self.parent = self.parent[:-1]
 		self._level -= 1
@@ -293,15 +295,38 @@ def onCollect(button):
 			return
 			
 		collectionFrame = collectiveSize(selected,margins)
-		uuidString = str(uuid.uuid4()).upper()
 		location = "{{{}, {}}}".format(*collectionFrame[:2])
 		widthHeight = "{{{}, {}}}".format(*collectionFrame[2:])
-		frame = "{{{}, {}}}".format(location,widthHeight)
-
+		collectionPyuiFrame = "{{{}, {}}}".format(location,widthHeight)
+		uuidString = str(uuid.uuid4()).upper()
+		
 		for row,item in selected:
-			pass
+#####################################################################
+#####################################################################
+#
+#  any attempt to type tvNodeList.delegate or even paste a copy of that string crashes the app
+#  and all edits since last time the file was loaded are lost.
+#
+#  the desired edit is to change "self' to tvNodeList.delegate"
+#
+			self.items[row]['node']['level'] = item['node']['level'] + 1
+#
+#
+#
+#####################################################################
+#####################################################################
+			thisFrame = item['node']['frame']
+			newFrame = (thisFrame[0] - collectionFrame[0] + margins[0],
+									thisFrame[1] - collectionFrame[1] + margins[1],
+									thisFrame[2], thisFrame[3])
+			thisLoc = "{{{}, {}}}".format(*newFrame[:2])
+			thisWH = "{{{}, {}}}".format(*newFrame[2:])
+			pyuiFrame = "{{{}, {}}}".format(thisLoc,thisWH)
+			self.items[row]['node']['frame'] = newFrame
+			self.items[row]['node']['attributes']['frame'] = pyuiFrame
+			self.items[row]['node']['parent'] = uuidString
+
 				
-						
 		thisView = genericView.format(uuidString, name, frame, "***REPLACE***")
 	
 		tvNodeList.selected_rows = []
@@ -365,58 +390,56 @@ def onDeselectAll(button):
 		item['selected'] = False
 	viewNodeMap.set_needs_display()
 	tvNodeList.reload_data()
-
-fg = FileGetter()
-fg.getFile()
-thisFile = fg.selection
-
-
-_,ext = os.path.splitext(thisFile)
-if not ext in ['.pyui','.json']:
-	console.hud_alert('Invalid file type')
-	sys.exit(1)
 	
-with open(thisFile,'r') as fh:
-	pyui = json.load(fh)
+if __name__ == '__main__':
+
+	fg = FileGetter(types=['pyui','json'])
+	fg.getFile()
+	thisFile = fg.selection
+
+	_,ext = os.path.splitext(thisFile)
+	if not ext in ['.pyui','.json']:
+		console.hud_alert('Invalid file type')
+		sys.exit(1)
+	
+	with open(thisFile,'r') as fh:
+		pyui = json.load(fh)
 
 #print json.dumps(pyui,indent=2)	
 	
-walker = NodeListWalker()
-walker.traverseNodeList(pyui)
+	walker = NodeListWalker()
+	walker.traverseNodeList(pyui)
 
-items = [{
+	items = [{
           'title': "{}{}".format(x['level']*2*'   ',x['name']),
           'node' : x, 
           'selected':False,
           'hidden':False,
-          'accessory_type':None
+          'accessory_type':None,
           } 
           for x in walker.nodes]
           
-v = ui.load_view()
-nodeDelegate = NodeTableViewDelegate(items)
-tvNodeList = v['view_nodeList']
-tvNodeList.delegate = tvNodeList.data_source = nodeDelegate
-tvNodeList.allows_multiple_selection = True
+	v = ui.load_view()
+	nodeDelegate = NodeTableViewDelegate(items)
+	tvNodeList = v['view_nodeList']
+	tvNodeList.delegate = tvNodeList.data_source = nodeDelegate
+	tvNodeList.allows_multiple_selection = True
 
-viewNodeMap = v['nodeMap']
-viewNodeMap.init(nodeDelegate)
-viewNodeMap.touch_enabled = True
+	viewNodeMap = v['nodeMap']
+	viewNodeMap.init(nodeDelegate)
+	viewNodeMap.touch_enabled = True
+	
+	v['button_Collect'].action = onCollect
+	v['button_Quit'].action = onQuit 
+	v['button_Flatten'].action = onFlatten
+	v['button_Save'].action = onSave
+	v['button_Undo'].action = onUndo
+	v['button_Hide_Selected'].action = onHideSelected
+	v['button_Unhide_All'].action = onUnhideAll
+	v['button_Select_Children'].action = onSelectChildren
+	v['button_Deselect_All'].action = onDeselectAll
 
-v['button_Collect'].action = onCollect
-v['button_Quit'].action = onQuit 
-v['button_Flatten'].action = onFlatten
-v['button_Save'].action = onSave
-v['button_Undo'].action = onUndo
-v['button_Hide_Selected'].action = onHideSelected
-v['button_Unhide_All'].action = onUnhideAll
-v['button_Select_Children'].action = onSelectChildren
-v['button_Deselect_All'].action = onDeselectAll
+	v.present()
 
-v.present()
-
-
-
-          
 
 	

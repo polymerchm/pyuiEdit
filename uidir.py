@@ -7,10 +7,14 @@ import console
 
 class MyTableViewDataSource (object):
     
-    def __init__(self,base_dir = '.'):
+    def __init__(self,base_dir = '.',types=None):
         self.dir = base_dir
+        self.types = types
         _, folders, files = next(os.walk(base_dir))
         folders.insert(0,'..')
+        if self.types:
+        	typesExt = ['.{}'.format(ext) for ext in self.types]
+        	files = [x for x in files if os.path.splitext(x)[1] in typesExt]
         self.data = (folders,files)
         
     def tableview_number_of_sections(self, tableview):
@@ -36,7 +40,7 @@ class MyTableViewDataSource (object):
             dir = os.path.join(self.dir, self.data[section][row])
             if os.path.exists(dir):
                 self.dir=dir
-            newv = FileViewer(self.dir)
+            newv = FileViewer(self.dir,self.types)
             nav = tableview.superview.navigation_view
             nav.push_view(newv)
         else:
@@ -50,10 +54,10 @@ class MyTableViewDataSource (object):
 
 
 class FileViewer(ui.View):
-    def __init__(self,base_dir = '.', *args, **kargs):
+    def __init__(self,base_dir = '.', types=None, *args, **kargs):
         self.table = ui.TableView(*args, **kargs)
         self.table.name = 'FileTable'
-        self.src = MyTableViewDataSource(base_dir)
+        self.src = MyTableViewDataSource(base_dir,types)
         self.table.data_source = self.src
         self.table.delegate = self.src
         self.table.flex = 'WHTBLR'
@@ -66,9 +70,9 @@ class FileViewer(ui.View):
 	 
 class FileGetter():
 	fileName = ''
-	def __init__(self,base_dir='.'):
+	def __init__(self,base_dir='.',types=None):
 		self.base_dir = base_dir
-		self.fv = FileViewer(self.base_dir)
+		self.fv = FileViewer(self.base_dir,types)
 			
 	def getFile(self):
 		fileName = ''
@@ -86,7 +90,7 @@ class FileGetter():
 		return FileGetter.fileName
 
 if __name__ == '__main__':
-	fg = FileGetter()
+	fg = FileGetter(types=None)
 	fg.getFile()
 	print fg.selection
 	
