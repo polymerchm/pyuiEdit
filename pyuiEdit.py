@@ -17,6 +17,7 @@ The topmost node (the rootView) is a list with a single node
 import ui, console,os,os.path,sys,json,re,uuid,math
 
 import uidir; reload(uidir); from uidir import FileGetter
+import NodeListWalker; reload(NodeListWalker); from NodeListWalker import NodeListWalker
 
 depthColors =  [(1.00, 0.80, 0.40),
                 (1.00, 1.00, 0.00),
@@ -59,65 +60,13 @@ genericView =   '''
     						}}
     						'''
 
-class NodeListWalker(object):
-	def __init__(self):
-		self._level = -1
-		self.nodes = []
-		self.parent = ["ROOT_UUID"]
-		self.uuid = "ROOT_UUID"
-		self.frameByUUID = {}
-		self.nodeByUUID = {}
-		
-	def reset(self):
-		self._level = -1
-		self.nodes = []   
-		
-	@property
-	def level(self):
-		return self._level		
-	
-	@level.setter	
-	def level(self,value):
-		self._level = value
-		
-	def parseFrame(self,frame):
-		parser = re.compile(r'\{\{(.*),(.*)\}.*\{(.*),(.*\d)\}')
-		res  = parser.match(frame).groups()
-		list = [float(x) for x in res]
-		return tuple(list)
-				
-	def traverseNodeList(self,nodeList):
-		self._level += 1
-		if nodeList:
-			for node in nodeList:
-				attributes = node['attributes']
-				classType = node['class']
-				frame = self.parseFrame(node['frame'])
-				if self._level:
-					nodeName = attributes['name'] if 'name' in attributes.keys() else "NULL"
-					self.uuid = attributes['uuid'] if 'uuid' in attributes.keys() else "NULL"
-				else:
-					nodeName = "BASE"
-					self.uuid = 'ROOT_UUID'
-				nodes = node['nodes'] # need to have these point to UUID-based dictionary
-				nodeList = [x['attributes']['uuid'] for x in nodes]
-				thisParent = self.parent[-1] if len(self.parent) else "ROOT_UUID"
-				self.frameByUUID[self.uuid] = (frame,thisParent)
-				self.nodes.append({'level':self._level,
-				                   'attributes': attributes,
-				                   'frame':frame,
-				                   'nodes':nodeList,
-				                   'class':classType,
-				                   'parent':thisParent,
-				                   'uuid':self.uuid,
-				                   'name':nodeName,
-				                   })
-				self.parent.append(self.uuid)
-				self.nodeByUUID[self.uuid] = self.nodes[-1]
-				self.traverseNodeList(nodes)
-		self.parent = self.parent[:-1]
-		self._level -= 1
 
+def listShuffle(list,row_from, row_to):
+	''' a method to re-order a list '''
+	from_item = list[row_from]
+	del list[row_from]
+	list.insert(row_to,from_item)
+	return list
 
 		
 class nodeMapView(ui.View):
@@ -169,8 +118,10 @@ class nodeMapView(ui.View):
 # need to account for orgins ofr parents.  need to walk down the tree
 
 		for item in self.items:
+			print item
 			title = item['title']
 			node = item['node']
+			print node
 			frame = node['frame']
 			level = node['level']
 			uuid = node['uuid']
@@ -271,7 +222,7 @@ def onSave(button):
 
 @ui.in_background
 def onCollect(button):
-	global tvNodeList
+	global nodeDelegate
 	selected = []
 	for row,item in enumerate(tvNodeList.delegate.items):
 		if item['selected']:
@@ -299,22 +250,15 @@ def onCollect(button):
 		widthHeight = "{{{}, {}}}".format(*collectionFrame[2:])
 		collectionPyuiFrame = "{{{}, {}}}".format(location,widthHeight)
 		uuidString = str(uuid.uuid4()).upper()
-		
+		childUUIDs =[]
+		oldLevel = item['node']['level']
 		for row,item in selected:
-#####################################################################
-#####################################################################
-#
-#  any attempt to type tvNodeList.delegate or even paste a copy of that string crashes the app
-#  and all edits since last time the file was loaded are lost.
-#
-#  the desired edit is to change "self' to tvNodeList.delegate"
-#
-			self.items[row]['node']['level'] = item['node']['level'] + 1
-#
-#
-#
-#####################################################################
-#####################################################################
+			print item,'\n'
+
+			nodeDelegate.items[row]['node']['level'] = oldLevel + 1
+			pad = 2*(oldLevel+1)*'   '
+			nodeDelegate.items[row]['title'] = "{}{}".format(pad,nodeDelegate.items[row]['node']['attributes']['name'])
+			
 			thisFrame = item['node']['frame']
 			newFrame = (thisFrame[0] - collectionFrame[0] + margins[0],
 									thisFrame[1] - collectionFrame[1] + margins[1],
@@ -322,13 +266,27 @@ def onCollect(button):
 			thisLoc = "{{{}, {}}}".format(*newFrame[:2])
 			thisWH = "{{{}, {}}}".format(*newFrame[2:])
 			pyuiFrame = "{{{}, {}}}".format(thisLoc,thisWH)
-			self.items[row]['node']['frame'] = newFrame
-			self.items[row]['node']['attributes']['frame'] = pyuiFrame
-			self.items[row]['node']['parent'] = uuidString
-
+			nodeDelegate.items[row]['node']['frame'] = newFrame
+			nodeDelegate.items[row]['node']['attributes']['frame'] = pyuiFrame
+			nodeDelegate.items[row]['node']['parent'] = uuidString
+			nodeDelegate.items[row]['selected'] = False
+			nodeDelegate.items[row]['hidden'] = False
+			childUUIDs.append(nodeDelegate.items[row]['node']['uuid'])
 				
-		thisView = genericView.format(uuidString, name, frame, "***REPLACE***")
-	
+		thisNode = genericView.format(uuidString, name, collectionPyuiFrame, childUUIDs)
+		print thisNode
+		thisItem= {
+          'title': "{}{}".format(oldLevel*2*'   ',name),
+          'node' : thisNode,
+          'selected':False,
+          'hidden':False,
+          'accessory_type':None,
+          } 
+		insertPoint = selected[0][0]
+		nodeDelegate.items.insert(insertPoint,thisItem)
+
+
+
 		tvNodeList.selected_rows = []
 		tvNodeList.reload_data()
 		viewNodeMap.set_needs_display()
@@ -422,9 +380,9 @@ if __name__ == '__main__':
 	v = ui.load_view()
 	nodeDelegate = NodeTableViewDelegate(items)
 	tvNodeList = v['view_nodeList']
-	tvNodeList.delegate = tvNodeList.data_source = nodeDelegate
-	tvNodeList.allows_multiple_selection = True
-
+	tvNodeList.delegate = nodeDelegate
+	tvNodeList.data_source = nodeDelegate
+	tvNodeList.allows_multiple_selection = True	
 	viewNodeMap = v['nodeMap']
 	viewNodeMap.init(nodeDelegate)
 	viewNodeMap.touch_enabled = True
