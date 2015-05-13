@@ -14,7 +14,7 @@ The strucure of a "node" is a dictionary with the four keys:
 The topmost node (the rootView) is a list with a single node
 
 '''
-import ui, console,os,os.path,sys,json,re,uuid,math
+import ui, console,os,os.path,sys,json,re,uuid,math,copy
 
 import uidir; reload(uidir); from uidir import FileGetter
 import NodeListWalker; reload(NodeListWalker); from NodeListWalker import NodeListWalker
@@ -43,23 +43,38 @@ validQuadTuple = re.compile(r"""\(
                               
 
 
-genericView =   '''
-    						{{
-    							"attributes": {{
-      						"tint_color": "RGBA(0.000000,0.000000,1.000000,1.000000)", 
-      						"border_color": "RGBA(0.000000,0.000000,0.000000,1.000000)", 
-      						"background_color": "RGBA(1.000000,1.000000,1.000000,1.000000)", 
-      						"enabled": true, 
-      						"flex": "",
-      						"uuid": "{}",
-      						"name": "{}",
-    							}}, 
-    							"frame": "{}",
-    							"nodes": {},
-    							"class": "View"						
-    						}}
-    						'''
+genericView =   '{{"attributes": {{"tint_color": "RGBA(0.000000,0.000000,1.000000,1.000000)","border_color": "RGBA(0.000000,0.000000,0.000000,1.000000)","background_color": "RGBA(1.000000,1.000000,1.000000,1.000000)","enabled": True,"flex": "","uuid": "{}","name": "{}",}},"frame": {},"nodes": {},"class": "View","level":{},"uuid":"{}","parent":"{}",}}'
 
+def flatten(S):
+	if S == []:
+		return S
+	if isinstance(S[0], list):
+		return flatten(S[0]) + flatten(S[1:])
+	return S[:1] + flatten(S[1:])
+
+			
+class ItemsWalker(): # walk down an items list and find children
+	def __init__(self,items):
+		self.items = items
+
+	def walkItems(self,itemList):
+		indexList = []
+		for index in itemList:
+			rowList = []
+			rowList.append(index)
+			thisItem = self.items[index]
+			nodes = thisItem['node']['nodes']
+			if nodes:
+				nodeList = []
+				for node in nodes:
+					for row,item in enumerate(self.items):
+						if node == item['node']['uuid']:
+							nodeList.append(row)
+				rowList.append(self.walkItems(nodeList))
+			else:
+				rowList.append([])
+			indexList.append(rowList)
+		return indexList
 
 def listShuffle(list,row_from, row_to):
 	''' a method to re-order a list '''
@@ -78,7 +93,6 @@ class nodeMapView(ui.View):
 			return True
 		else:
 			return False
-		
 		
 	def centroid(self,frame):
 		cX = frame[2]/2.0 + frame[0]
@@ -100,42 +114,54 @@ class nodeMapView(ui.View):
 		
 				
 	def init(self,data_source):
-		self.items = data_source.items
-		self.pyuiFrame = self.items[0]['node']['frame']
+		self.data_source = data_source
+		self.pyuiFrame = self.data_source.items[0]['node']['frame']
 		self.pyuiWidth = self.pyuiFrame[2] - self.pyuiFrame[0]
 		self.pyuiHeight = self.pyuiFrame[3] - self.pyuiFrame[1]
 		if self.pyuiWidth > self.pyuiHeight:
 			self.ratio = self.width/self.pyuiWidth
 		else:
 			self.ratio = self.height/self.pyuiHeight
-		
-		
+			
 	def draw(self):
-		if not self.items: return
-		topNodesFrame = self.items[0]['node']['frame']
+		if not self.data_source.items: return
+		topNodesFrame = self.data_source.items[0]['node']['frame']
 		topNodeCentroid = self.centroid(topNodesFrame)
 		
-# need to account for orgins ofr parents.  need to walk down the tree
-
-		for item in self.items:
-			print item
+# need to account for orgins of parents.  need to walk down the tree
+		for item in self.data_source.items:
 			title = item['title']
 			node = item['node']
-			print node
-			frame = node['frame']
 			level = node['level']
+			frame = node['frame']
 			uuid = node['uuid']
-			parent = node['parent']
+			try:
+				parent = node['parent']
+			except KeyError:
+				print "Keyerror on node['parent']\n"
+				print item
+				sys.exit(1)
 			isSelected = item['selected']
 			isHidden = item['hidden']
 			offset = [0,0]
-			while parent != 'ROOT_UUID':
-				parentFrame,parent = walker.frameByUUID[parent]
+			ctr = 0
+			while parent != 'ROOT_UUID': 
+ # work back through lineage until no more offsets.
+				ctr +=1
+				if ctr > 30:
+					sys.exit(1)
+				parentFrame,grandParent = walker.frameByUUID[parent]
 				offset = [offset[0] + parentFrame[0], offset[1] +parentFrame[1]]
+				parent = grandParent
 					
-			frame = [frame[0] + offset[0], frame[1] + offset[1], frame[2], frame[3]]	
+			try:
+				xframe = [frame[0] + offset[0], frame[1] + offset[1], frame[2], frame[3]]	
+			except TypeError:
+				print "Type error in collect"
+				print "frame", xframe, "offset", offset
 			if not isHidden and level:
-				path = ui.Path.rect(*[x*self.ratio for x in frame])
+				scaledFrame = [x*self.ratio for x in xframe]
+				path = ui.Path.rect(*scaledFrame)
 				ui.set_color((depthColors[level]) + (0.5,))
 				path.fill()
 				ui.set_color(0.5)
@@ -173,13 +199,20 @@ class NodeTableViewDelegate(object):
 	def tableview_cell_for_row(self, tableview, section, row):
 		# Create and return a cell for the given section/row
 		cell = ui.TableViewCell()
-		cell.text_label.text = self.items[row]['title']
+		level = self.items[row]['node']['level']
+		cell.text_label.text = (level+1)*"  " + self.items[row]['title']
 		if self.items[row]['hidden']:
 			cell.text_label.text_color = (0.90, 0.90, 0.90)
 		else:
 			cell.text_label.text_color = 'red' if self.items[row]['selected'] else 'black'	
 		cell.accessory_type = 'detail_button'
-		level = self.items[row]['node']['level']
+		try:
+			level = self.items[row]['node']['level']
+		except KeyError:
+			print "Keyerror in cell for row"
+			print row
+			print self.items[row]['node']
+			sys.exit(1)
 		cell.background_color = depthColors[level]
 		return cell
 	
@@ -220,15 +253,35 @@ def collectiveSize(selected,margin=(0,0,0,0)):
 def onSave(button):
 	pass
 
+
+def buildTree(workingList,inputList,items):
+	for thisIndex,nodes in inputList:
+		workingList.append(items[thisIndex])
+		if nodes:
+			buildTree(workingList,nodes,items)
+
 @ui.in_background
-def onCollect(button):
-	global nodeDelegate
+def onCollect(button):	
+	global nodeDelegate,walker,undoStack
 	selected = []
 	for row,item in enumerate(tvNodeList.delegate.items):
 		if item['selected']:
 			selected.append((row,item))
+		
 	if selected:
-		try:
+		item = selected[0][1] # get the first selected 
+		oldParent = item['node']['parent']
+		oldLevel = item['node']['level']
+		for _,item in selected:
+			if oldParent != item['node']['parent']:
+				console.hud_alert("Mixed heritgate items collected.  Must all have same parent")
+				return				
+		try: 
+			name = console.input_alert('Container View Name','Enter name for new container view')
+		except KeyboardInterrupt:
+			return
+		
+		try:			
 			result = console.input_alert('Container View Margins',"Enter tuple of Left,Top,Right and Bottom Margins","(0,0,0,0)")
 			match = validQuadTuple.match(result)
 			if match:
@@ -240,57 +293,81 @@ def onCollect(button):
 				return			
 		except KeyboardInterrupt:
 			margins = (0,0,0,0)	
-		try: 
-			name = console.input_alert('Container View Name','Enter name for new container view')
-		except KeyboardInterrupt:
-			return
 			
+		undoStack.append((copy.deepcopy(nodeDelegate.items),
+										 copy.deepcopy(walker.frameByUUID))
+										)		
+
 		collectionFrame = collectiveSize(selected,margins)
 		location = "{{{}, {}}}".format(*collectionFrame[:2])
 		widthHeight = "{{{}, {}}}".format(*collectionFrame[2:])
 		collectionPyuiFrame = "{{{}, {}}}".format(location,widthHeight)
-		uuidString = str(uuid.uuid4()).upper()
+		collectionUUID = str(uuid.uuid4()).upper()
 		childUUIDs =[]
-		oldLevel = item['node']['level']
+		parentFrame,_ = walker.frameByUUID[oldParent]
+		children = []
+		# adjust the first generation children frames and parehhood
 		for row,item in selected:
-			print item,'\n'
-
-			nodeDelegate.items[row]['node']['level'] = oldLevel + 1
-			pad = 2*(oldLevel+1)*'   '
-			nodeDelegate.items[row]['title'] = "{}{}".format(pad,nodeDelegate.items[row]['node']['attributes']['name'])
-			
+			thisUUID = item['node']['uuid']
 			thisFrame = item['node']['frame']
-			newFrame = (thisFrame[0] - collectionFrame[0] + margins[0],
-									thisFrame[1] - collectionFrame[1] + margins[1],
+			newFrame = (thisFrame[0]  - collectionFrame[0] + margins[0],
+									thisFrame[1]  - collectionFrame[1] + margins[1],
 									thisFrame[2], thisFrame[3])
 			thisLoc = "{{{}, {}}}".format(*newFrame[:2])
 			thisWH = "{{{}, {}}}".format(*newFrame[2:])
 			pyuiFrame = "{{{}, {}}}".format(thisLoc,thisWH)
 			nodeDelegate.items[row]['node']['frame'] = newFrame
 			nodeDelegate.items[row]['node']['attributes']['frame'] = pyuiFrame
-			nodeDelegate.items[row]['node']['parent'] = uuidString
-			nodeDelegate.items[row]['selected'] = False
-			nodeDelegate.items[row]['hidden'] = False
-			childUUIDs.append(nodeDelegate.items[row]['node']['uuid'])
-				
-		thisNode = genericView.format(uuidString, name, collectionPyuiFrame, childUUIDs)
-		print thisNode
+			nodeDelegate.items[row]['node']['parent'] = collectionUUID
+			#nodeDelegate.items[row]['selected'] = False
+			#nodeDelegate.items[row]['hidden'] = False
+			
+			walker.setFrameByUUID(thisUUID,newFrame,collectionUUID) # update the "byUUID" hash
+			childUUIDs.append(nodeDelegate.items[row]['node']['uuid']) #save for writing the collection view
+# accululate all childrens rows (as a tree)
+			childwalker = ItemsWalker(nodeDelegate.items)
+			children.append(childwalker.walkItems([row,]))
+			del childwalker
+		
+		childrenRows = flatten(children) # get the indexes as a simple list
+		for row in childrenRows:
+			nodeDelegate.items[row]['node']['level'] += 1
+			
+		thisNode = genericView.format(collectionUUID, name, collectionFrame, childUUIDs,oldLevel,collectionUUID,oldParent)
 		thisItem= {
-          'title': "{}{}".format(oldLevel*2*'   ',name),
-          'node' : thisNode,
+          'title': name,
+          'node' : eval(thisNode),
           'selected':False,
           'hidden':False,
           'accessory_type':None,
           } 
 		insertPoint = selected[0][0]
+		
+# get the rows which are children
+
+		childrenItems = [nodeDelegate.items[row] for row in childrenRows]
+		
+		otherItems = [nodeDelegate.items[row] for row in range(insertPoint+1,len(nodeDelegate.items)) if row not in childrenRows]
+
+
 		nodeDelegate.items.insert(insertPoint,thisItem)
+		nodeDelegate.listLength += 1
+		walker.setFrameByUUID(collectionUUID,collectionFrame,oldParent)
 
-
-
+		nodeDelegate.items[:] = nodeDelegate.items[:insertPoint+1]
+		for item in childrenItems:
+			nodeDelegate.items.append(item)
+		for item in otherItems:
+			nodeDelegate.items.append(item)
+			
+		for row,_ in enumerate(nodeDelegate.items):
+			nodeDelegate.items[row]['selected'] = False
+			nodeDelegate.items[row]['hidden'] = False		
+		
 		tvNodeList.selected_rows = []
 		tvNodeList.reload_data()
-		viewNodeMap.set_needs_display()
-		
+		viewNodeMap.set_needs_display()		
+
 		
 		
 		
@@ -319,12 +396,20 @@ def onQuit(button):
 	global v
 	v.close()
 	
-def onFlatten(button):
-	pass
 	
 def onUndo(button):
-	pass
-	
+	global nodeDelegate,undoStack,walker
+	if undoStack:
+		previousList,previousDict = undoStack.pop()
+		nodeDelegate.items = copy.deepcopy(previousList)
+		walker.frameByUUID = copy.deepcopy(previousDict)
+		for row,_ in enumerate(nodeDelegate.items):
+			nodeDelegate.items[row]['selected'] = False
+			nodeDelegate.items[row]['hidden'] = False
+		nodeDelegate.listLength = len(nodeDelegate.items)
+		tvNodeList.reload_data()
+		viewNodeMap.set_needs_display()
+			
 def onHideSelected(button):
 	global nodeDelegate
 	for row,item in enumerate(nodeDelegate.items):
@@ -333,8 +418,7 @@ def onHideSelected(button):
 			item['selected'] = False
 	viewNodeMap.set_needs_display()
 	tvNodeList.reload_data()
-			
-	
+						
 def onUnhideAll(button):
 	global nodeDelegate
 	for item in nodeDelegate.items:
@@ -350,7 +434,7 @@ def onDeselectAll(button):
 	tvNodeList.reload_data()
 	
 if __name__ == '__main__':
-
+	undoStack = []
 	fg = FileGetter(types=['pyui','json'])
 	fg.getFile()
 	thisFile = fg.selection
@@ -363,13 +447,13 @@ if __name__ == '__main__':
 	with open(thisFile,'r') as fh:
 		pyui = json.load(fh)
 
-#print json.dumps(pyui,indent=2)	
+	print json.dumps(pyui,indent=2)	
 	
 	walker = NodeListWalker()
 	walker.traverseNodeList(pyui)
 
 	items = [{
-          'title': "{}{}".format(x['level']*2*'   ',x['name']),
+          'title': x['name'],
           'node' : x, 
           'selected':False,
           'hidden':False,
@@ -386,10 +470,10 @@ if __name__ == '__main__':
 	viewNodeMap = v['nodeMap']
 	viewNodeMap.init(nodeDelegate)
 	viewNodeMap.touch_enabled = True
+
 	
 	v['button_Collect'].action = onCollect
 	v['button_Quit'].action = onQuit 
-	v['button_Flatten'].action = onFlatten
 	v['button_Save'].action = onSave
 	v['button_Undo'].action = onUndo
 	v['button_Hide_Selected'].action = onHideSelected

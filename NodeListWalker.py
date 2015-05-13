@@ -22,6 +22,9 @@ class NodeListWalker(object):
 	def level(self,value):
 		self._level = value
 		
+	def setFrameByUUID(self,uuid,frame,parent):
+		self.frameByUUID[uuid] = (frame,parent)
+	
 	def parseFrame(self,frame):
 		parser = re.compile(r'\{\{(.*),(.*)\}.*\{(.*),(.*\d)\}')
 		res  = parser.match(frame).groups()
