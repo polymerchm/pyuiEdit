@@ -15,6 +15,7 @@ The topmost node (the rootView) is a list with a single node
 
 '''
 import ui, console,os,os.path,sys,json,re,uuid,math,copy
+from copy import deepcopy
 
 import uidir; reload(uidir); from uidir import FileGetter
 import NodeListWalker; reload(NodeListWalker); from NodeListWalker import NodeListWalker
@@ -243,11 +244,14 @@ def collectiveSize(selected,margin=(0,0,0,0)):
 		topLeftY = min(topLeftY,frame[1])
 		bottomRightX = max(bottomRightX, (frame[0]+frame[2]))
 		bottomRightY = max(bottomRightY, (frame[1]+frame[3]))
+	width = bottomRightX - topLeftX
+	height = bottomRightY - topLeftY
 	topLeftX -= margin[0]
 	topLeftY -= margin[1]
-	bottomRightX += margin[2]
-	bottomRightY += margin[3]	
-	return (topLeftX,topLeftY,bottomRightX - topLeftX, bottomRightY - topLeftY)
+	width += margin[0]+margin[1]
+	height += margin[2]+margin[3]
+	
+	return (topLeftX,topLeftY, width, height)
 	
 	
 def onSave(button):
@@ -294,8 +298,8 @@ def onCollect(button):
 		except KeyboardInterrupt:
 			margins = (0,0,0,0)	
 			
-		undoStack.append((copy.deepcopy(nodeDelegate.items),
-										 copy.deepcopy(walker.frameByUUID))
+		undoStack.append((deepcopy(nodeDelegate.items),
+										  deepcopy(walker.frameByUUID))
 										)		
 
 		collectionFrame = collectiveSize(selected,margins)
@@ -310,8 +314,8 @@ def onCollect(button):
 		for row,item in selected:
 			thisUUID = item['node']['uuid']
 			thisFrame = item['node']['frame']
-			newFrame = (thisFrame[0]  - collectionFrame[0] + margins[0],
-									thisFrame[1]  - collectionFrame[1] + margins[1],
+			newFrame = (thisFrame[0]  - collectionFrame[0],
+									thisFrame[1]  - collectionFrame[1],
 									thisFrame[2], thisFrame[3])
 			thisLoc = "{{{}, {}}}".format(*newFrame[:2])
 			thisWH = "{{{}, {}}}".format(*newFrame[2:])
@@ -319,8 +323,7 @@ def onCollect(button):
 			nodeDelegate.items[row]['node']['frame'] = newFrame
 			nodeDelegate.items[row]['node']['attributes']['frame'] = pyuiFrame
 			nodeDelegate.items[row]['node']['parent'] = collectionUUID
-			#nodeDelegate.items[row]['selected'] = False
-			#nodeDelegate.items[row]['hidden'] = False
+
 			
 			walker.setFrameByUUID(thisUUID,newFrame,collectionUUID) # update the "byUUID" hash
 			childUUIDs.append(nodeDelegate.items[row]['node']['uuid']) #save for writing the collection view
@@ -343,13 +346,12 @@ def onCollect(button):
           } 
 		insertPoint = selected[0][0]
 		
-# get the rows which are children
-
 		childrenItems = [nodeDelegate.items[row] for row in childrenRows]
 		
-		otherItems = [nodeDelegate.items[row] for row in range(insertPoint+1,len(nodeDelegate.items)) if row not in childrenRows]
-
-
+		otherItems = [nodeDelegate.items[row] for 
+									row in range(insertPoint+1,len(nodeDelegate.items))
+									if row not in childrenRows]
+									
 		nodeDelegate.items.insert(insertPoint,thisItem)
 		nodeDelegate.listLength += 1
 		walker.setFrameByUUID(collectionUUID,collectionFrame,oldParent)
@@ -401,8 +403,8 @@ def onUndo(button):
 	global nodeDelegate,undoStack,walker
 	if undoStack:
 		previousList,previousDict = undoStack.pop()
-		nodeDelegate.items = copy.deepcopy(previousList)
-		walker.frameByUUID = copy.deepcopy(previousDict)
+		nodeDelegate.items = deepcopy(previousList)
+		walker.frameByUUID = deepcopy(previousDict)
 		for row,_ in enumerate(nodeDelegate.items):
 			nodeDelegate.items[row]['selected'] = False
 			nodeDelegate.items[row]['hidden'] = False
