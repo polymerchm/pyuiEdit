@@ -12,7 +12,7 @@
         "attributes" : {
           "uuid" : "D3B2D368-8BA5-41F2-873B-CF1069E3F2FE",
           "background_color" : "RGBA(1.000000,1.000000,1.000000,1.000000)",
-          "data_source_items" : "Row 1\nRow 2 >\nRow 3 (i)",
+          "data_source_items" : "this\nis\na\ntst\n",
           "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
           "border_width" : 1,
           "data_source_number_of_lines" : 1,

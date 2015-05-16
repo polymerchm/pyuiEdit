@@ -312,14 +312,6 @@ class pyuiBuilder():
 			name = thisNode['name']
 		except:
 			name = attributes['name']
-		#print 'thisNode'
-		#for key,value in thisNode.items():
-		#print key, '=> ', value
-		#print
-		#print "nodes ", nodes
-		#print 'attributes ', attributes
-		#print 'frame ',frame
-		#print "class ", thisClass
 
 		self.openCurly()
 		self.padded('"attributes": {\n')
@@ -334,6 +326,8 @@ class pyuiBuilder():
 				else:
 					self.unpadded('false, \n')
 			else:
+				if key == 'data_source_items':
+					value = value.replace('\n','\\n')
 				self.unpadded('"{}", \n'.format(value))
 
 		self.closeCurly(comma=True)
@@ -606,8 +600,6 @@ if __name__ == '__main__':
 	
 	with open(thisFile,'r') as fh:
 		pyui = json.load(fh)
-
-	print json.dumps(pyui,indent=2)	
 	
 	walker = NodeListWalker()
 	walker.traverseNodeList(pyui)
