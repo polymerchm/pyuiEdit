@@ -1,4 +1,4 @@
-**pyuiEdit** - a tool for manipulating pyui file organization
+**pyuiEdit** - a tool re-organizing pyui heirarchies
 
 pyuiEdit will present a schematic view of the pyui file. Its primary purpose is to group views at the same "level" into a new view as its subviews.  All subviews of the selcted view maintain their hierarchical relationships with their own descendents.   pyuiEdit is only "sized" to operate on iPads.
 
@@ -13,4 +13,8 @@ Once the desired views are selected, they (and their descendents) can be "deposi
 
 The **Undo** button restores the ui to its prior state.
 
-The current state of the ui can be saves as a pyui or json file by hitting the **Save** button.  A dialog presents the file directory of the original source file.  If the extension is not provided, it defaults to ".pyui"
+The current state of the ui can be saved as a pyui or json file by hitting the **Save** button.  A dialog presents the file directory of the original source file.  If the extension is not provided, it defaults to ".pyui".  Extensions of than 'pyui or json' are not permitted.  The resultant file is "pretty-printed" so that it is readable when edited as a text file (say using **shellista** or **stash**'s `edit -t` command)
+
+**To Do**:
+	- allowing manipulation of selected view's "atrributes"
+	- dealing with attribute values that have embedded newline characters.
