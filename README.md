@@ -16,5 +16,5 @@ The **Undo** button restores the ui to its prior state.
 The current state of the ui can be saved as a pyui or json file by hitting the **Save** button.  A dialog presents the file directory of the original source file.  If the extension is not provided, it defaults to ".pyui".  Extensions of than 'pyui or json' are not permitted.  The resultant file is "pretty-printed" so that it is readable when edited as a text file (say using **shellista** or **stash**'s `edit -t` command)
 
 **To Do**:
-	- allowing manipulation of selected view's "atrributes"
-	- dealing with attribute values that have embedded newline characters.
+- allowing manipulation of selected view's "atrributes"
+- a better way of dealing with attribute values that have embedded newline characters. More annoying then important.  Only an issue in the default strings in things like ListView's.
