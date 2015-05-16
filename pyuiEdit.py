@@ -14,7 +14,7 @@ The strucure of a "node" is a dictionary with the four keys:
 The topmost node (the rootView) is a list with a single node
 
 '''
-import ui, console,os,os.path,sys,json,re,uuid,math,copy
+import ui, console,os,os.path,sys,json,re,uuid,math,copy,dialogs
 from copy import deepcopy
 
 import uidir; reload(uidir); from uidir import FileGetter
@@ -26,6 +26,7 @@ depthColors =  [(1.00, 0.80, 0.40),
                 (0.90, 0.90, 0.90),
                 (1.00, 0.40, 1.00),
                 (0.80, 1.00, 0.40),
+                (0.60, 1.00, 0.30),
                ]
 
 validQuadTuple = re.compile(r"""\(
@@ -53,6 +54,19 @@ def flatten(S):
 		return flatten(S[0]) + flatten(S[1:])
 	return S[:1] + flatten(S[1:])
 
+def uniqify(sequence, idfun=None):
+	''' return a unique, order preserved version in input list'''
+	if not idfun:
+		def idfun(x): return x
+	seen = {}
+	result = []
+	for item in sequence:
+		marker = idfun(item)
+		if marker in seen.keys(): 
+			continue
+		seen[marker] = 1
+		result.append(item)
+	return result
 			
 class ItemsWalker(): # walk down an items list and find children
 	def __init__(self,items):
@@ -99,19 +113,6 @@ class nodeMapView(ui.View):
 		cX = frame[2]/2.0 + frame[0]
 		cY = frame[3]/2.0 + frame[1]
 		return (cX,cY)
-		
-	def angle_distance(self,p1,p2):
-		deltaX = p1[0] - p2[0]
-		deltaY = p1[1] - p2[1]
-		return (math.atan2(deltaY,deltaX), math.sqrt(deltaX*deltaX + deltaY*deltaY))
-		
-	def displace(self,point,centroid):
-		''' diplace a point towards to centroid'''
-		angle,distance = self.angle_distance(point,centroid)
-		displacement = 0 #distance*(.005)#(1.0 - self.ratio)
-		deltaX = -displacement*math.cos(angle)
-		deltaY = -displacement*math.sin(angle)
-		return (deltaX, deltaY)
 		
 				
 	def init(self,data_source):
@@ -171,12 +172,18 @@ class nodeMapView(ui.View):
 			
 			
 	def touch_began(self,touch):
+		global lastSelectedRow
 		location = touch.location
 		for row,item in enumerate(nodeDelegate.items[1:]):
 			if self.inRectangle(location,[x*self.ratio for x in item['node']['frame']]) and not item['hidden']:
 				nodeDelegate.items[row+1]['selected'] = not nodeDelegate.items[row+1]['selected']
+				if nodeDelegate.items[row+1]['selected']:
+					lastSelectedRow = row+1
+				else:
+					lastSelectedRow = -1
 				tvNodeList.reload_data()
 				self.set_needs_display()
+				break
 				
 class NodeTableViewDelegate(object):
 	def __init__(self,items):
@@ -201,7 +208,7 @@ class NodeTableViewDelegate(object):
 		# Create and return a cell for the given section/row
 		cell = ui.TableViewCell()
 		level = self.items[row]['node']['level']
-		cell.text_label.text = (level+1)*"  " + self.items[row]['title']
+		cell.text_label.text = (level)*">>" + (level != 0)*" " + self.items[row]['title']
 		if self.items[row]['hidden']:
 			cell.text_label.text_color = (0.90, 0.90, 0.90)
 		else:
@@ -219,9 +226,11 @@ class NodeTableViewDelegate(object):
 	
 	def tableview_did_select(self, tableview, section, row):
 		# Called when a row was selected.
+		global lastSelectedRow
 		if not self.items[row]['hidden']:
 			self.items[row]['selected'] =  not self.items[row]['selected']
 			viewNodeMap.set_needs_display()
+			lastSelectedRow = row
 		ui.delay(self.delayed_reload,0.05)
 
 			
@@ -252,12 +261,134 @@ def collectiveSize(selected,margin=(0,0,0,0)):
 	height += margin[2]+margin[3]
 	
 	return (topLeftX,topLeftY, width, height)
+
+class pyuiBuilder():
+	def __init__(self,rowByUUID,nodeDelegate):
+		self.rowByUUID = rowByUUID
+		self.padLevel = 0
+		self.items = nodeDelegate.items
+		self.outString = ""
+		
+	def openBrace(self):
+		self.outString +=  "{}[\n".format(self.padLevel*"  ")
+		self.padLevel +=1
+
+		
+	def closeBrace(self,comma=False):
+		if self.outString[-2] == ',':
+			self.outString = self.outString[:-2] + '\n'
+		self.padLevel -=1
+		if comma:
+			self.outString += "{}],\n".format(self.padLevel*"  ")
+		else:
+			self.outString += "{}]\n".format(self.padLevel*"  ")
+		
+	def openCurly(self):
+		self.outString += "{}{{\n".format(self.padLevel*"  ")
+		self.padLevel +=1
+		
+	def closeCurly(self,comma=False):
+		if self.outString[-2] == ',':
+			self.outString = self.outString[:-2] + '\n'
+		self.padLevel -=1
+		if comma:
+			self.outString += "{}}},\n".format(self.padLevel*"  ")
+		else:
+			self.outString += "{}}}\n".format(self.padLevel*"  ")
+				
+	def padded(self,string):
+		self.outString += "{}{}".format(self.padLevel*"  ",string)
+		
+	def unpadded(self,string):
+		self.outString += string
 	
-	
+	def traverse(self,uuid):
+		thisNode = self.items[self.rowByUUID[uuid]]['node']
+		nodes = thisNode['nodes']
+		attributes = thisNode['attributes']
+		frame = thisNode['frame']
+		thisClass = thisNode['class']
+		try:
+			name = thisNode['name']
+		except:
+			name = attributes['name']
+		#print 'thisNode'
+		#for key,value in thisNode.items():
+		#print key, '=> ', value
+		#print
+		#print "nodes ", nodes
+		#print 'attributes ', attributes
+		#print 'frame ',frame
+		#print "class ", thisClass
+
+		self.openCurly()
+		self.padded('"attributes": {\n')
+		self.padLevel += 1
+		for key,value in attributes.items():
+			if key in ["frame","class"]:
+				continue
+			self.padded('"{}": '.format(key))
+			if key == 'enabled':
+				if value:
+					self.unpadded('true, \n')
+				else:
+					self.unpadded('false, \n')
+			else:
+				self.unpadded('"{}", \n'.format(value))
+
+		self.closeCurly(comma=True)
+		self.padded('"frame": "{{{{{}, {}}}, {{{}, {}}}}}", \n'.format(*frame))
+		self.padded('"class": "{}", \n'.format(thisClass))
+		self.padded('"nodes":')
+		if not nodes:
+			self.unpadded('[],\n')
+		else:			
+			self.unpadded('[\n')
+			self.padLevel += 1
+			firstNode = True
+			for node in nodes:
+				self.traverse(node)
+			self.closeBrace(comma=True)
+		self.closeCurly(comma=True)
+								
+	def makeString(self,root):
+		self.padLevel = 0
+		self.outString = ''
+		self.openBrace()
+		self.traverse(root['uuid'])
+		self.closeBrace()
+		return self.outString
+
+@ui.in_background
 def onSave(button):
-	pass
+	global nodeDelegate,walker,undoStack,fileDirectory
+	try:
+		fileName = console.input_alert('Ouptut File','Enter Output File Name',fileDirectory+'/')
+	except KeyboardInterrupt:
+		return
+	
+	base,ext = os.path.splitext(fileName)
+	if not ext:
+		ext = '.pyui'
+		
+	if ext not in ['.pyui','.json']:
+		console.hud_alert('invalid ui file type')
+		return
 
-
+	root = nodeDelegate.items[0]['node']
+	
+	fileName = base+ext
+	
+	rowByUUID = {}
+	for row,item in enumerate(nodeDelegate.items):
+		rowByUUID[item['node']['uuid']] = row
+		
+	pyui = pyuiBuilder(rowByUUID,nodeDelegate)
+	outString = pyui.makeString(root)
+	
+	with open(fileName, 'wb') as fh:
+		fh.write(outString)
+	
 def buildTree(workingList,inputList,items):
 	for thisIndex,nodes in inputList:
 		workingList.append(items[thisIndex])
@@ -266,49 +397,68 @@ def buildTree(workingList,inputList,items):
 
 @ui.in_background
 def onCollect(button):	
-	global nodeDelegate,walker,undoStack
+	global nodeDelegate,walker,undoStack,lastSelectedRow
+	
 	selected = []
 	for row,item in enumerate(tvNodeList.delegate.items):
-		if item['selected']:
+		if item['selected'] and not item['hidden']:
 			selected.append((row,item))
 		
 	if selected:
 		item = selected[0][1] # get the first selected 
 		oldParent = item['node']['parent']
 		oldLevel = item['node']['level']
+		
 		for _,item in selected:
 			if oldParent != item['node']['parent']:
 				console.hud_alert("Mixed heritgate items collected.  Must all have same parent")
 				return				
-		try: 
-			name = console.input_alert('Container View Name','Enter name for new container view')
-		except KeyboardInterrupt:
+
+		result = dialogs.form_dialog("Container View",
+						[{'type':'text', 
+							'key':'name', 
+							'title':'View Name',
+							'value':''},
+						 {'type':'text',
+							'key':'margins',
+							'title':'Frame Margins',
+							'value':'0,0,0,0'},
+						 {'type':'text',
+							'key':'customView',
+							'title':'Custom View Class',
+							'value':''}
+						]
+						)
+		if not result:
 			return
-		
-		try:			
-			result = console.input_alert('Container View Margins',"Enter tuple of Left,Top,Right and Bottom Margins","(0,0,0,0)")
-			match = validQuadTuple.match(result)
-			if match:
-				margins = [float(x) for x in match.groups() if x]
-				if len(margins) != 4:
-					console.hud_alert("{} is invalid margin definition".format(result))
-			else:
+			
+		customViewClass = result['customView']
+		name = result['name']
+	
+		match = validQuadTuple.match(result['margins'])
+		if match:
+			margins = [float(x) for x in match.groups() if x]
+			if len(margins) != 4:
 				console.hud_alert("{} is invalid margin definition".format(result))
-				return			
-		except KeyboardInterrupt:
-			margins = (0,0,0,0)	
+		else:
+			console.hud_alert("{} is invalid margin definition".format(result))
+			return			
 			
 		undoStack.append((deepcopy(nodeDelegate.items),
 										  deepcopy(walker.frameByUUID))
 										)		
-
+		for row,item in enumerate(nodeDelegate.items):
+			if item['node']['uuid'] == oldParent:
+				oldParentRow = row
+																
 		collectionFrame = collectiveSize(selected,margins)
 		location = "{{{}, {}}}".format(*collectionFrame[:2])
 		widthHeight = "{{{}, {}}}".format(*collectionFrame[2:])
 		collectionPyuiFrame = "{{{}, {}}}".format(location,widthHeight)
 		collectionUUID = str(uuid.uuid4()).upper()
 		childUUIDs =[]
-		parentFrame,_ = walker.frameByUUID[oldParent]
+		parentFrame,parentUUID = walker.frameByUUID[oldParent]
+
 		children = []
 		# adjust the first generation children frames and parehhood
 		for row,item in selected:
@@ -323,7 +473,11 @@ def onCollect(button):
 			nodeDelegate.items[row]['node']['frame'] = newFrame
 			nodeDelegate.items[row]['node']['attributes']['frame'] = pyuiFrame
 			nodeDelegate.items[row]['node']['parent'] = collectionUUID
-
+			for nodeIndex,node in enumerate(nodeDelegate.items[oldParentRow]['node']['nodes']):
+				if node == thisUUID:
+					nodeDelegate.items[oldParentRow]['node']['nodes'][nodeIndex] = collectionUUID
+					break			
+			#the above will lead to redundant references to the same node.  Make unique later.
 			
 			walker.setFrameByUUID(thisUUID,newFrame,collectionUUID) # update the "byUUID" hash
 			childUUIDs.append(nodeDelegate.items[row]['node']['uuid']) #save for writing the collection view
@@ -332,6 +486,7 @@ def onCollect(button):
 			children.append(childwalker.walkItems([row,]))
 			del childwalker
 		
+		nodeDelegate.items[oldParentRow]['node']['nodes'] = uniqify(nodeDelegate.items[oldParentRow]['node']['nodes'])
 		childrenRows = flatten(children) # get the indexes as a simple list
 		for row in childrenRows:
 			nodeDelegate.items[row]['node']['level'] += 1
@@ -344,6 +499,9 @@ def onCollect(button):
           'hidden':False,
           'accessory_type':None,
           } 
+		if customViewClass:
+			thisItem['custom_class'] = customViewClass
+			
 		insertPoint = selected[0][0]
 		
 		childrenItems = [nodeDelegate.items[row] for row in childrenRows]
@@ -367,14 +525,15 @@ def onCollect(button):
 			nodeDelegate.items[row]['hidden'] = False		
 		
 		tvNodeList.selected_rows = []
+		lastSelectedRow = -1
 		tvNodeList.reload_data()
-		viewNodeMap.set_needs_display()		
+		viewNodeMap.set_needs_display()
 
 		
 		
 		
 def onSelectChildren(button):
-	global nodeDelegate
+	global nodeDelegate,lastSelectedRow
 	def markChildren(thisRow):
 		thisUUID = nodeDelegate.items[thisRow]['node']['uuid']
 		for row in range(thisRow,len(nodeDelegate.items)):
@@ -382,14 +541,10 @@ def onSelectChildren(button):
 				nodeDelegate.items[row]['selected'] = True
 				markChildren(row)
 						
-	selected = -1
-	for row,item in enumerate(nodeDelegate.items):
-		if item['selected']:
-			selected = row
-			break
-	if selected < 0:
+	if lastSelectedRow < 0:
 		return
-	markChildren(selected)
+	markChildren(lastSelectedRow)
+	lastSelectedRow = -1
 	tvNodeList.reload_data()
 	viewNodeMap.set_needs_display()
 
@@ -400,7 +555,7 @@ def onQuit(button):
 	
 	
 def onUndo(button):
-	global nodeDelegate,undoStack,walker
+	global nodeDelegate,undoStack,walker,lastSelectedRow
 	if undoStack:
 		previousList,previousDict = undoStack.pop()
 		nodeDelegate.items = deepcopy(previousList)
@@ -409,6 +564,7 @@ def onUndo(button):
 			nodeDelegate.items[row]['selected'] = False
 			nodeDelegate.items[row]['hidden'] = False
 		nodeDelegate.listLength = len(nodeDelegate.items)
+		lastSelectedRow = -1
 		tvNodeList.reload_data()
 		viewNodeMap.set_needs_display()
 			
@@ -429,9 +585,10 @@ def onUnhideAll(button):
 	tvNodeList.reload_data()
 	
 def onDeselectAll(button):
-	global nodeDelegate
+	global nodeDelegate,lastSelectedRow
 	for item in nodeDelegate.items:
 		item['selected'] = False
+	lastSelectedRow = -1
 	viewNodeMap.set_needs_display()
 	tvNodeList.reload_data()
 	
@@ -440,6 +597,7 @@ if __name__ == '__main__':
 	fg = FileGetter(types=['pyui','json'])
 	fg.getFile()
 	thisFile = fg.selection
+	fileDirectory = os.path.normpath(os.path.dirname(thisFile))
 
 	_,ext = os.path.splitext(thisFile)
 	if not ext in ['.pyui','.json']:
@@ -472,7 +630,7 @@ if __name__ == '__main__':
 	viewNodeMap = v['nodeMap']
 	viewNodeMap.init(nodeDelegate)
 	viewNodeMap.touch_enabled = True
-
+	lastSelectedRow = -1
 	
 	v['button_Collect'].action = onCollect
 	v['button_Quit'].action = onQuit 
