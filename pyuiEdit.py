@@ -1,6 +1,10 @@
 # coding: utf-8
 
 '''
+
+Author:  Steven K. Pollack
+Date Released: May 16, 2015
+
 allow for text editing to encapsulate specific views from a pyui as subviews of a "container" view
 
 The strucure of a "node" is a dictionary with the four keys:
