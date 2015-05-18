@@ -279,8 +279,9 @@ class pyuiBuilder():
 
 		
 	def closeBrace(self,comma=False):
-		if self.outString[-2] == ',':
-			self.outString = self.outString[:-2] + '\n'
+		commaIndex = self.outString.find(',',-4)
+		if commaIndex != -1:
+			self.outString = self.outString[:commaIndex] + '\n'
 		self.padLevel -=1
 		if comma:
 			self.outString += "{}],\n".format(self.padLevel*"  ")
@@ -292,8 +293,9 @@ class pyuiBuilder():
 		self.padLevel +=1
 		
 	def closeCurly(self,comma=False):
-		if self.outString[-2] == ',':
-			self.outString = self.outString[:-2] + '\n'
+		commaIndex = self.outString.find(',',-4)
+		if commaIndex != -1:
+			self.outString = self.outString[:commaIndex] + '\n'
 		self.padLevel -=1
 		if comma:
 			self.outString += "{}}},\n".format(self.padLevel*"  ")
@@ -324,16 +326,18 @@ class pyuiBuilder():
 			if key in ["frame","class"]:
 				continue
 			self.padded('"{}": '.format(key))
-			if key == 'enabled':
+			if type(value) == type(True):
 				if value:
 					self.unpadded('true, \n')
 				else:
 					self.unpadded('false, \n')
+			elif type(value) in (type(1.5),type(1)):
+				self.unpadded('{}, \n'.format(value))
 			else:
 				if key == 'data_source_items':
 					value = value.replace('\n','\\n')
 				self.unpadded('"{}", \n'.format(value))
-
+					
 		self.closeCurly(comma=True)
 		self.padded('"frame": "{{{{{}, {}}}, {{{}, {}}}}}", \n'.format(*frame))
 		self.padded('"class": "{}", \n'.format(thisClass))
