@@ -38,7 +38,8 @@ def ui_draw_arrow(pointA, pointB, lineWidth=1, lineDash=None, phase=None,
 			pointA and pointB are xy tuples
 			headWidth and Headheight are proprtionate to the length inless they are negative in which case
 			 their absolute value is used in pixels
-			pointType = tupple with (start,end) types 0: none 1: triangle, 2: barbed, 3: circle, 4: diamond
+			pointType = tupple with (start,end) types 0: none 1: triangle, 2: barbed, 3: circle, 4: diamond,
+			                                          5: I-beam
 				for circle, headWidth is taken as relative/absolute radius. 
 	'''
 		
@@ -61,6 +62,9 @@ def ui_draw_arrow(pointA, pointB, lineWidth=1, lineDash=None, phase=None,
 		elif thisType == 4:
 			initCoords = [[0, w/2, 0, -w/2, 0],
 										[0, -h/2, -h, -h/2 , -h/2]]
+		elif thisType == 5:
+			initCoords = [[w/2, -w/2, -w/2, w/2, 0],
+										[0,   0,    -h,   -h,  -h]]
 		else:
 			raise ValueError('invalid head type')
 		coords = dot(R,initCoords)
@@ -108,8 +112,7 @@ if __name__ == '__main__':
 
 		testList = [(200,370), (300,300), (370,200), (100,300), (100,200), (60,100), (200,10), (300,100)]			
 		for item in testList:
-			ui_draw_arrow(center,item, pointType=(0,4),lineWidth=5,headWidth = -20, headHeight=-40,
-										lineDash=[10,10,2,10],phase=3)
+			ui_draw_arrow(center,item, pointType=(5,5),lineWidth=2, headWidth = -10, headHeight=-4)
 
 		image = ctx.get_image()
 		image.show()

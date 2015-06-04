@@ -13,8 +13,8 @@ Once the desired views are selected, they (and their descendents) can be "deposi
 
 The **Undo** button restores the ui to its prior state.
 
+The **Flex Edit** button allows the flex attribute of the view to be changed. In this window the **Save** button changes this, but only in the in-memory copy, not the source pyui.  The **Quit** button, leaves the Flex Editor without making any changes.  
+
 The current state of the ui can be saved as a pyui or json file by hitting the **Save** button.  A dialog presents the file directory of the original source file.  If the extension is not provided, it defaults to ".pyui".  Extensions of than 'pyui or json' are not permitted.  The resultant file is "pretty-printed" so that it is readable when edited as a text file (say using **shellista** or **stash**'s `edit -t` command)
 
-**To Do**:
-
-- allowing manipulation of selected view's "attributes"
+Some goodies for general use are the *ui_draw_arrow*, *Shield* and *uidir* routines.  *NodeListWalker* was separated for debugging purposes only.  

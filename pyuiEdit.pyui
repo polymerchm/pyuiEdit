@@ -25,7 +25,7 @@
         }
       },
       {
-        "frame" : "{{331.5, 16.5}, {587.5, 491.5}}",
+        "frame" : "{{331.5, 6}, {587.5, 491.5}}",
         "class" : "View",
         "nodes" : [
 
@@ -98,7 +98,7 @@
         }
       },
       {
-        "frame" : "{{451, 564.5}, {111.5, 44}}",
+        "frame" : "{{569, 564}, {111.5, 44}}",
         "class" : "Button",
         "nodes" : [
 
@@ -155,7 +155,7 @@
         }
       },
       {
-        "frame" : "{{813.5, 512}, {111.5, 44}}",
+        "frame" : "{{688, 512}, {111.5, 44}}",
         "class" : "Button",
         "nodes" : [
 
@@ -174,7 +174,7 @@
         }
       },
       {
-        "frame" : "{{688, 512.5}, {111.5, 44}}",
+        "frame" : "{{813.5, 512}, {111.5, 44}}",
         "class" : "Button",
         "nodes" : [
 
@@ -190,6 +190,165 @@
           "uuid" : "31357E82-E751-4E9E-BB15-A50B17C9E1CF",
           "font_size" : 14,
           "name" : "button_Deselect_All"
+        }
+      },
+      {
+        "frame" : "{{449.5, 564}, {111.5, 44}}",
+        "class" : "Button",
+        "nodes" : [
+
+        ],
+        "attributes" : {
+          "flex" : "",
+          "border_width" : 2,
+          "enabled" : true,
+          "title" : "Edit Flex",
+          "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+          "corner_radius" : 3,
+          "font_bold" : false,
+          "uuid" : "F34DF461-F918-4E09-B1A7-6060D6A1A259",
+          "font_size" : 15,
+          "name" : "button_edit_flex"
+        }
+      },
+      {
+        "frame" : "{{0, 6}, {323, 267.5}}",
+        "class" : "View",
+        "nodes" : [
+          {
+            "frame" : "{{0, 0}, {150, 150}}",
+            "class" : "View",
+            "nodes" : [
+
+            ],
+            "attributes" : {
+              "flex" : "B",
+              "border_width" : 1,
+              "enabled" : true,
+              "custom_class" : "FlexInterface",
+              "uuid" : "FC9A4CDE-7037-4D53-8F92-47BF5AFDBB5E",
+              "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "background_color" : "RGBA(0.990566,0.990566,0.990566,1.000000)",
+              "corner_radius" : 1,
+              "name" : "flex_interface"
+            }
+          },
+          {
+            "frame" : "{{166, 0}, {150, 150}}",
+            "class" : "View",
+            "nodes" : [
+              {
+                "frame" : "{{10, 10}, {55, 55}}",
+                "class" : "View",
+                "nodes" : [
+                  {
+                    "frame" : "{{15, 15}, {25, 25}}",
+                    "class" : "View",
+                    "nodes" : [
+
+                    ],
+                    "attributes" : {
+                      "uuid" : "0D1B9210-EDE8-4181-99E2-83C16A90F5F3",
+                      "enabled" : true,
+                      "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+                      "name" : "inner",
+                      "background_color" : "RGBA(0.665094,0.430355,0.430355,1.000000)",
+                      "flex" : ""
+                    }
+                  }
+                ],
+                "attributes" : {
+                  "uuid" : "53394229-599C-4910-BE64-5725B7B348F2",
+                  "enabled" : true,
+                  "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+                  "name" : "outer",
+                  "background_color" : "RGBA(0.778302,0.778302,0.778302,1.000000)",
+                  "flex" : "WH"
+                }
+              }
+            ],
+            "attributes" : {
+              "flex" : "LB",
+              "border_width" : 1,
+              "enabled" : true,
+              "custom_class" : "",
+              "uuid" : "1049AB04-D43A-46A1-808C-75799B2515F2",
+              "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "background_color" : "RGBA(1.000000,1.000000,1.000000,1.000000)",
+              "corner_radius" : 1,
+              "name" : "flex_demo"
+            }
+          },
+          {
+            "frame" : "{{26, 212.5}, {97.5, 31}}",
+            "class" : "Button",
+            "nodes" : [
+
+            ],
+            "attributes" : {
+              "flex" : "RT",
+              "border_width" : 1,
+              "enabled" : true,
+              "title" : "Save",
+              "uuid" : "19D2A4F4-8444-42DA-B0A8-24B8AA1FCFF1",
+              "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "font_bold" : false,
+              "corner_radius" : 1,
+              "font_size" : 15,
+              "name" : "button_Save"
+            }
+          },
+          {
+            "frame" : "{{192, 211}, {97.5, 32.5}}",
+            "class" : "Button",
+            "nodes" : [
+
+            ],
+            "attributes" : {
+              "flex" : "LT",
+              "border_width" : 1,
+              "enabled" : true,
+              "title" : "Quit",
+              "uuid" : "4DBB0ED2-5E6A-4681-A002-B8BB535AD789",
+              "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "font_bold" : false,
+              "corner_radius" : 1,
+              "font_size" : 15,
+              "name" : "button_Quit"
+            }
+          },
+          {
+            "frame" : "{{78, 158}, {150, 32}}",
+            "class" : "Label",
+            "nodes" : [
+
+            ],
+            "attributes" : {
+              "uuid" : "5E9D9013-A02B-40A5-9F48-A1CE91B27E6C",
+              "flex" : "",
+              "corner_radius" : 1,
+              "background_color" : "RGBA(1.000000,1.000000,1.000000,1.000000)",
+              "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "border_width" : 1,
+              "alignment" : "center",
+              "text_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+              "enabled" : true,
+              "text" : "''",
+              "name" : "current_flex",
+              "font_size" : 17
+            }
+          }
+        ],
+        "attributes" : {
+          "flex" : "WHLRTB",
+          "border_width" : 1,
+          "enabled" : true,
+          "custom_class" : "FlexView",
+          "uuid" : "ED777E79-19CD-49C7-A030-6D31C083DBD8",
+          "border_color" : "RGBA(0.000000,0.000000,0.000000,1.000000)",
+          "background_color" : "RGBA(0.807991,0.858491,0.782741,1.000000)",
+          "corner_radius" : 1,
+          "name" : "flex_view"
         }
       }
     ],
