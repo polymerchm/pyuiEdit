@@ -18,3 +18,9 @@ The **Flex Edit** button allows the flex attribute of the view to be changed. In
 The current state of the ui can be saved as a pyui or json file by hitting the **Save** button.  A dialog presents the file directory of the original source file.  If the extension is not provided, it defaults to ".pyui".  Extensions of than 'pyui or json' are not permitted.  The resultant file is "pretty-printed" so that it is readable when edited as a text file (say using **shellista** or **stash**'s `edit -t` command)
 
 Some goodies for general use are the *ui_draw_arrow*, *Shield* and *uidir* routines.  *NodeListWalker* was separated for debugging purposes only.  
+
+
+To Do:
+
+-Zoom view interface
+-Marquee select
