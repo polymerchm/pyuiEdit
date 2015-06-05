@@ -816,7 +816,6 @@ v['button_Deselect_All'].action = onDeselectAll
 
 v['button_edit_flex'].action = onEditFlex
 v['flex_view'].hidden = True
-for sv in v['flex_view'].subviews: print sv.name
 v['flex_view']['button_Quit'].action = v['flex_view'].onQuit
 v['flex_view']['button_Save'].action = v['flex_view'].onSave
 v['flex_view'].ev = threading.Event()
